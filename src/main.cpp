@@ -20,7 +20,7 @@ Adafruit_NeoPixel strip(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
 const char *githubHost = "api.github.com";
 const char *repoPath = "/repos/Rext-Dev/POC-OTA-ESP32/releases/latest"; // Cambia a tu repo
 String firmwareURL = "";
-String currentVersion = "1.0.7"; // Versión actual del firmware
+String currentVersion = "1.0.8"; // Versión actual del firmware
 
 const char rootCACert[] PROGMEM =
     "-----BEGIN CERTIFICATE-----\n"
@@ -47,6 +47,46 @@ const char rootCACert[] PROGMEM =
     "8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=\n"
     "-----END CERTIFICATE-----\n";
 
+// S3 Cert
+const char amazonRootCACert[] PROGMEM =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIGhTCCBW2gAwIBAgIRAJB3NEFHMW75lZl2eur98bkwDQYJKoZIhvcNAQELBQAw\n"
+    "gY8xCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVhdGVyIE1hbmNoZXN0ZXIxEDAO\n"
+    "BgNVBAcTB1NhbGZvcmQxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDE3MDUGA1UE\n"
+    "AxMuU2VjdGlnbyBSU0EgRG9tYWluIFZhbGlkYXRpb24gU2VjdXJlIFNlcnZlciBD\n"
+    "QTAeFw0yNTAzMDcwMDAwMDBaFw0yNjAzMDcyMzU5NTlaMBYxFDASBgNVBAMMCyou\n"
+    "Z2l0aHViLmlvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxKQLElVm\n"
+    "JYKnZ9dmKMWrb4fy4BWFm658EQemS4hJgrt+1NFpL2tGVaFupVyV3vmKorCX3zej\n"
+    "c7+gH8Ugpemmj9r5tk1NZ0SXXALTjvT2i03oSqjwCzkn+R1o0TYg+G7PyQ5pE18A\n"
+    "E+K3VUcpch1f5RyBTEvE4+HUg4/6OpAIYFVznJ3yk8a+bo1i/HBp2MbtPzssSlT8\n"
+    "mPLY76SETtKdwgIdY91MkTiJd1x0KJDM2GPKM7pNTc81NMSw6WBzsxg4PFbR+BCY\n"
+    "82/sYu8iMy/AdYcUz72hh2DGXnVypzzV/LLgJ/VAP5m+md0lVH5KIG/cduDrajlo\n"
+    "LQ4LKJktO4VmwQIDAQABo4IDUjCCA04wHwYDVR0jBBgwFoAUjYxexFStiuF36Zv5\n"
+    "mwXhuAGNYeEwHQYDVR0OBBYEFBLwftAxb+SvNbWJ+0LZ7bcLk80EMA4GA1UdDwEB\n"
+    "/wQEAwIFoDAMBgNVHRMBAf8EAjAAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEF\n"
+    "BQcDAjBJBgNVHSAEQjBAMDQGCysGAQQBsjEBAgIHMCUwIwYIKwYBBQUHAgEWF2h0\n"
+    "dHBzOi8vc2VjdGlnby5jb20vQ1BTMAgGBmeBDAECATCBhAYIKwYBBQUHAQEEeDB2\n"
+    "ME8GCCsGAQUFBzAChkNodHRwOi8vY3J0LnNlY3RpZ28uY29tL1NlY3RpZ29SU0FE\n"
+    "b21haW5WYWxpZGF0aW9uU2VjdXJlU2VydmVyQ0EuY3J0MCMGCCsGAQUFBzABhhdo\n"
+    "dHRwOi8vb2NzcC5zZWN0aWdvLmNvbTCCAX4GCisGAQQB1nkCBAIEggFuBIIBagFo\n"
+    "AHYAlpdkv1VYl633Q4doNwhCd+nwOtX2pPM2bkakPw/KqcYAAAGVbeysdQAABAMA\n"
+    "RzBFAiEA+YIgsAqb2cqQVlF4JP2ERIVCH3RXdB7DjIPc6Ch5aK4CIHjqUoV7F5Mk\n"
+    "fcIQcmdn7Z5UR8nYtPA2OLvYc3mCFcLuAHcAGYbUxyiqb/66A294Kk0BkarOLXIx\n"
+    "D67OXXBBLSVMx9QAAAGVbeysDgAABAMASDBGAiEAjryAbXlHsXj/v4f7CWXJzDUX\n"
+    "SUuvA5kRH3doh4WPUQcCIQC+nojCqhCn/ZupbnI50O1T3FSKBQu/LOZ33fApzLJW\n"
+    "hQB1AMs49xWJfIShRF9bwd37yW7ymlnNRwppBYWwyxTDFFjnAAABlW3srDcAAAQD\n"
+    "AEYwRAIgS98L1D2W8nzV3tIQ0R4UJWxwxb7I/TT6e9ly0nA0QsACIFpl7s/WA1Qm\n"
+    "z1Vm8ZtihoNFubO/AiiaVGaeDQiznHFCMHsGA1UdEQR0MHKCCyouZ2l0aHViLmlv\n"
+    "ggwqLmdpdGh1Yi5jb22CFyouZ2l0aHVidXNlcmNvbnRlbnQuY29tggpnaXRodWIu\n"
+    "Y29tgglnaXRodWIuaW+CFWdpdGh1YnVzZXJjb250ZW50LmNvbYIOd3d3LmdpdGh1\n"
+    "Yi5jb20wDQYJKoZIhvcNAQELBQADggEBAHksjTVCptW9CtbBXu+7J2cDDmKRz/EA\n"
+    "kUyONuojOnKoI3d2f5DQDkqzu/gSj6B28YO3a4EYFktvwq3KnXAu9KzSM1ehlhtA\n"
+    "lxlvjjGUgXvux7DjnBH40ItKiE723opeWVbm2WExdRPSckm/CDwshz2U3Sl3M3Wt\n"
+    "v0xPuZJrg1tMIL58RqrS5PpFlAIIlEUC6dr+xVQrwLNcYXVVgvZsRSX/YbrzboLM\n"
+    "gWhuDSQPcaeDGHcy7NxRZHmlpHz+/Ot067VuxjGqm9veKNGZMUdroS+ocxAJBXv3\n"
+    "Z1NCCowvpZazNxKccQg7izYwd6HL70WMxCWFU0e70uw9KZqteG7SVcQ=\n"
+    "-----END CERTIFICATE-----\n";
+
 // chequeo 1 minuto -> para testar rapido
 const unsigned long checkInterval = 1 * 60 * 1000;
 unsigned long lastCheck = 0;
@@ -65,7 +105,6 @@ void connectWiFi()
 void performOTAUpdate(String binURL)
 {
   WiFiClientSecure client;
-  client.setCACert(rootCACert);
   HTTPClient http;
   int redirects = 0;
   const int maxRedirects = 5; // Límite para evitar loops
@@ -75,6 +114,14 @@ void performOTAUpdate(String binURL)
   {
     Serial.print("Iniciando descarga desde: ");
     Serial.println(currentURL);
+    if (currentURL.startsWith("https://github.com"))
+    {
+      client.setCACert(rootCACert); // Usa S3 Cert
+    }
+    else
+    {
+      client.setCACert(amazonRootCACert); // Usa Amazon Cert
+    }
     if (http.begin(client, currentURL))
     {
       Serial.println("Conexión HTTPS establecida");
