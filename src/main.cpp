@@ -19,17 +19,36 @@ Adafruit_NeoPixel strip(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
 // GITHUB
 const char *githubHost = "api.github.com";
 const char *repoPath = "/repos/Rext-Dev/POC-OTA-ESP32/releases/latest"; // Cambia a tu repo
-const char *firmwareURL = "";
+String firmwareURL = "";
 String currentVersion = "1.0.0"; // Versión actual del firmware
 
-const char *githubCert =
-  "-----BEGIN PUBLIC KEY-----\n"
-  "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ7HRH5V+m4grbVZ9nyYbEiwrjPOD\n"
-  "DQ+6roX6ktxGp7fz/jsxJ4MAYMnFsPXpx6+uENqtB4wsyhRVryWI63ecpA==\n"
-  "-----END PUBLIC KEY-----\n";
+const char rootCACert[] PROGMEM =
+  "-----BEGIN CERTIFICATE-----\n"
+  "MIID0zCCArugAwIBAgIQVmcdBOpPmUxvEIFHWdJ1lDANBgkqhkiG9w0BAQwFADB7\n"
+  "MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD\n"
+  "VQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UE\n"
+  "AwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTE5MDMxMjAwMDAwMFoXDTI4\n"
+  "MTIzMTIzNTk1OVowgYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5\n"
+  "MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBO\n"
+  "ZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3QgRUNDIENlcnRpZmljYXRpb24gQXV0\n"
+  "aG9yaXR5MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEGqxUWqn5aCPnetUkb1PGWthL\n"
+  "q8bVttHmc3Gu3ZzWDGH926CJA7gFFOxXzu5dP+Ihs8731Ip54KODfi2X0GHE8Znc\n"
+  "JZFjq38wo7Rw4sehM5zzvy5cU7Ffs30yf4o043l5o4HyMIHvMB8GA1UdIwQYMBaA\n"
+  "FKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1\n"
+  "xmNjmjAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zARBgNVHSAECjAI\n"
+  "MAYGBFUdIAAwQwYDVR0fBDwwOjA4oDagNIYyaHR0cDovL2NybC5jb21vZG9jYS5j\n"
+  "b20vQUFBQ2VydGlmaWNhdGVTZXJ2aWNlcy5jcmwwNAYIKwYBBQUHAQEEKDAmMCQG\n"
+  "CCsGAQUFBzABhhhodHRwOi8vb2NzcC5jb21vZG9jYS5jb20wDQYJKoZIhvcNAQEM\n"
+  "BQADggEBABns652JLCALBIAdGN5CmXKZFjK9Dpx1WywV4ilAbe7/ctvbq5AfjJXy\n"
+  "ij0IckKJUAfiORVsAYfZFhr1wHUrxeZWEQff2Ji8fJ8ZOd+LygBkc7xGEJuTI42+\n"
+  "FsMuCIKchjN0djsoTI0DQoWz4rIjQtUfenVqGtF8qmchxDM6OW1TyaLtYiKou+JV\n"
+  "bJlsQ2uRl9EMC5MCHdK8aXdJ5htN978UeAOwproLtOGFfy/cQjutdAFI3tZs4RmY\n"
+  "CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf\n"
+  "8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=\n"
+  "-----END CERTIFICATE-----\n";
 
-// chequeo 10 minutos
-const unsigned long checkInterval = 10 * 60 * 1000;
+// chequeo 1 minuto -> para testar rapido
+const unsigned long checkInterval = 1 * 60 * 1000;
 unsigned long lastCheck = 0;
 
 void connectWiFi()
@@ -45,7 +64,7 @@ void connectWiFi()
 
 void performOTAUpdate(String binURL) {
   WiFiClientSecure client;
-  client.setCACert(githubCert);
+  client.setCACert(rootCACert);
   HTTPClient http;
   if (http.begin(client, binURL)) {
     int httpCode = http.GET();
@@ -67,7 +86,7 @@ void performOTAUpdate(String binURL) {
 
 void checkForUpdates() {
   WiFiClientSecure client;
-  client.setCACert(githubCert);
+  client.setCACert(rootCACert);
   HTTPClient http;
   String url = "https://" + String(githubHost) + repoPath;
   if (http.begin(client, url)) {
@@ -79,7 +98,7 @@ void checkForUpdates() {
       deserializeJson(doc, payload);
       String latestVersion = doc["tag_name"];  // Ej. "v1.0.1"
       if (latestVersion > currentVersion) {  // Compara versiones
-        firmwareURL = doc["assets"][0]["browser_download_url"];  // URL del .bin
+        firmwareURL = doc["assets"][0]["browser_download_url"].as<String>();  // URL del .bin
         Serial.println("Nueva versión: " + latestVersion + ". Descargando...");
         performOTAUpdate(firmwareURL);
       } else Serial.println("Firmware actualizado");
