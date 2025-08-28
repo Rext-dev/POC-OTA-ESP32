@@ -1,0 +1,57 @@
+name: Build, Sign and Release ESP32 Firmware
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger en tags como v1.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # Si usas libs git
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio esptool
+
+      - name: Build firmware
+        run: pio run -e esp32s3-usb  # Ajusta env a tu platformio.ini
+
+      - name: Sign firmware
+        run: |
+          echo "${{ secrets.ESP_SIGN_KEY }}" > key.pem  # Usa secret para clave privada
+          espsecure.py sign_data --version 2 --keyfile key.pem .pio/build/esp32s3-usb/firmware.bin -o signed_firmware.bin
+          rm key.pem  # Borra clave sensible
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: signed_firmware.bin
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: signed_firmware.bin
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generateReleaseNotes: true  # Notas automáticas
+          tag: ${{ github.ref_name }}  # Usa tag como v1.0.0
+          name: Release ${{ github.ref_name }}  # Nombre release
+          body: "Firmware compilado y firmado para ESP32-S3."  # Descripción
