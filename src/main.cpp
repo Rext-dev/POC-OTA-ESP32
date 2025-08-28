@@ -20,7 +20,7 @@ Adafruit_NeoPixel strip(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
 const char *githubHost = "api.github.com";
 const char *repoPath = "/repos/Rext-Dev/POC-OTA-ESP32/releases/latest"; // Cambia a tu repo
 String firmwareURL = "";
-String currentVersion = "1.0.0"; // Versión actual del firmware
+String currentVersion = "1.0.4"; // Versión actual del firmware
 
 const char rootCACert[] PROGMEM =
   "-----BEGIN CERTIFICATE-----\n"
