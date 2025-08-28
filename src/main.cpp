@@ -20,7 +20,7 @@ Adafruit_NeoPixel strip(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
 const char *githubHost = "api.github.com";
 const char *repoPath = "/repos/Rext-Dev/POC-OTA-ESP32/releases/latest"; // Cambia a tu repo
 String firmwareURL = "";
-String currentVersion = "1.0.6"; // Versión actual del firmware
+String currentVersion = "1.0.7"; // Versión actual del firmware
 
 const char rootCACert[] PROGMEM =
     "-----BEGIN CERTIFICATE-----\n"
@@ -67,51 +67,76 @@ void performOTAUpdate(String binURL)
   WiFiClientSecure client;
   client.setCACert(rootCACert);
   HTTPClient http;
-  Serial.print("Iniciando descarga desde: ");
-  Serial.println(binURL);
-  if (http.begin(client, binURL))
+  int redirects = 0;
+  const int maxRedirects = 5; // Límite para evitar loops
+
+  String currentURL = binURL;
+  while (redirects < maxRedirects)
   {
-    Serial.println("Conexión HTTPS establecida");
-    int httpCode = http.GET();
-    Serial.print("HTTP Code: ");
-    Serial.println(httpCode);
-    if (httpCode == HTTP_CODE_OK)
+    Serial.print("Iniciando descarga desde: ");
+    Serial.println(currentURL);
+    if (http.begin(client, currentURL))
     {
-      int contentLength = http.getSize();
-      Serial.print("Tamaño del firmware: ");
-      Serial.println(contentLength);
-      if (Update.begin(contentLength))
-      {
-        Serial.println("Update.begin OK");
-        size_t written = Update.writeStream(http.getStream());
-        Serial.print("Bytes escritos: ");
-        Serial.println(written);
-        if (written == contentLength)
+      Serial.println("Conexión HTTPS establecida");
+      int httpCode = http.GET();
+      Serial.print("HTTP Code: ");
+      Serial.println(httpCode);
+      if (httpCode == HTTP_CODE_OK)
+      { // 200: Éxito, procede
+        int contentLength = http.getSize();
+        Serial.print("Tamaño del firmware: ");
+        Serial.println(contentLength);
+        if (Update.begin(contentLength))
         {
-          Serial.println("Escritura completa");
-          if (Update.end(true))
+          Serial.println("Update.begin OK");
+          size_t written = Update.writeStream(http.getStream());
+          Serial.print("Bytes escritos: ");
+          Serial.println(written);
+          if (written == contentLength)
           {
-            Serial.println("Update exitoso! Rebooting...");
-            ESP.restart();
+            Serial.println("Escritura completa");
+            if (Update.end(true))
+            {
+              Serial.println("Update exitoso! Rebooting...");
+              ESP.restart();
+            }
+            else
+            {
+              Serial.print("Update.end falló. Error: ");
+              Serial.println(Update.getError());
+            }
           }
           else
-          {
-            Serial.print("Update.end falló. Error: ");
-            Serial.println(Update.getError());
-          }
+            Serial.println("Escritura incompleta");
         }
         else
-          Serial.println("Escritura incompleta");
+          Serial.println("Update.begin falló (tamaño inválido?)");
+        http.end();
+        return; // Update completado, sal
+      }
+      else if (httpCode == 302 || httpCode == 301)
+      {                                  // Redirect: Sigue
+        currentURL = http.getLocation(); // Obtiene nueva URL de headers
+        Serial.print("Redirect detectado a: ");
+        Serial.println(currentURL);
+        http.end();
+        redirects++;
       }
       else
-        Serial.println("Update.begin falló (tamaño inválido?)");
+      {
+        Serial.print("HTTP GET falló con code: ");
+        Serial.println(httpCode);
+        http.end();
+        return; // Falla definitiva
+      }
     }
     else
-      Serial.println("HTTP GET falló");
-    http.end();
+    {
+      Serial.println("Fallo en http.begin (cert/red?)");
+      return;
+    }
   }
-  else
-    Serial.println("Fallo en http.begin (cert/red?)");
+  Serial.println("Demasiados redirects, abortando");
 }
 
 void checkForUpdates()
